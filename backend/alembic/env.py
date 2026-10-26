@@ -2,12 +2,13 @@ import asyncio
 
 from alembic import context
 from sqlalchemy import pool
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app import models  # noqa: F401 -- register every table in Base.metadata
 from app.core.config import get_settings
 from app.database import Base
 
-# Import future ORM models here so their tables register in Base.metadata.
 target_metadata = Base.metadata
 database_url = get_settings().DATABASE_URL.get_secret_value()
 
@@ -24,7 +25,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection) -> None:
+def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection, target_metadata=target_metadata, compare_type=True
     )
@@ -44,4 +45,8 @@ async def run_async_migrations() -> None:
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_async_migrations())
+    connection = context.config.attributes.get("connection")
+    if connection is not None:
+        do_run_migrations(connection)
+    else:
+        asyncio.run(run_async_migrations())
